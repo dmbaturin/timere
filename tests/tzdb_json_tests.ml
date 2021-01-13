@@ -1,5 +1,3 @@
-open Test_utils
-
 module Alco = struct
   let tzdb_json_loads_correctly () =
     Alcotest.(check unit)

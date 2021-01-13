@@ -382,18 +382,14 @@ exception Invalid_timestamp
 
 val of_timestamp : timestamp -> t
 
-val of_timestamps : ?skip_invalid:bool -> timestamp list -> t
+val of_timestamps : timestamp list -> t
 (** [of_timestamps l]
-
-    [skip_invalid] defaults to [false]
 
     @raise Invalid_timestamp if [not skip_invalid] and [l] contains an invalid timestamp
 *)
 
-val of_timestamp_seq : ?skip_invalid:bool -> timestamp Seq.t -> t
+val of_timestamp_seq : timestamp Seq.t -> t
 (** [of_timestamps s]
-
-    [skip_invalid] defaults to [false]
 
     @raise Invalid_timestamp if [not skip_invalid] and [s] contains an invalid timestamp
 *)

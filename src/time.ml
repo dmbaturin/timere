@@ -1801,20 +1801,31 @@ let of_sorted_date_times date_times =
 
 let of_date_time date_time = of_date_times [ date_time ]
 
+let of_timestamp x =
+  match Date_time'.of_timestamp x with
+  | Ok _ -> Point x
+  | Error () -> raise Invalid_timestamp
+
 let interval_of_timestamp ~skip_invalid x =
   match Date_time'.of_timestamp x with
   | Ok _ -> Some (x, Int64.succ x)
   | Error () -> if skip_invalid then None else raise Invalid_timestamp
 
-let of_timestamp_seq ?(skip_invalid = false) timestamps =
-  timestamps
-  |> Seq.filter_map (interval_of_timestamp ~skip_invalid)
-  |> of_interval_seq
+let of_timestamp_seq timestamps =
+  union_seq
+    (
+      Seq.map
+        of_timestamp
+        timestamps
+    )
 
-let of_timestamps ?(skip_invalid = false) timestamps =
-  timestamps
-  |> CCList.filter_map (interval_of_timestamp ~skip_invalid)
-  |> of_intervals
+let of_timestamps timestamps =
+  union
+    (
+      List.map
+        of_timestamp
+        timestamps
+    )
 
 let of_sorted_timestamp_seq ?(skip_invalid = false) timestamps =
   timestamps
@@ -1825,8 +1836,6 @@ let of_sorted_timestamps ?(skip_invalid = false) timestamps =
   timestamps
   |> CCList.filter_map (interval_of_timestamp ~skip_invalid)
   |> of_sorted_intervals
-
-let of_timestamp x = of_timestamps [ x ]
 
 let full_string_of_weekday (wday : weekday) : string =
   match wday with
