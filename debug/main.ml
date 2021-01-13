@@ -146,7 +146,7 @@ let debug_example () =
        & weekdays [ wday ])
   in
   let search_start_dt =
-    Time.Date_time'.make ~year:2000 ~month:`Jan ~day:1 ~hour:10 ~minute:0
+    Time.Date_time'.make ~year:2021 ~month:`Jan ~day:1 ~hour:10 ~minute:0
       ~second:0 ~tz
     |> CCResult.get_exn
   in
@@ -166,10 +166,11 @@ let debug_example () =
     |> CCOpt.get_exn
   in
   let timere =
-    (* (interval_exact_exc search_start search_end_exc)
-     * & *)
-    years [ 2021 ] & fifth_weekday_of_month `Fri
+    interval_exact_inc search_start search_end_exc
+    (* &
+     * second_weekday_of_month `Fri *)
   in
+  print_endline (To_sexp.to_sexp_string timere);
   match Resolver.resolve timere with
   | Error msg -> print_endline msg
   | Ok s -> display_intervals ~display_using_tz:tz s
