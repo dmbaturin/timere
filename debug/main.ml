@@ -18,16 +18,18 @@ let display_intervals ~display_using_tz s =
         Printf.printf "%s - %s\n" s size_str)
 
 let debug_resolver () =
-  let s = {|
-(unchunk (drop 3 (chunk_at_month_boundary (all))))
-    |} in
-  let timere = CCResult.get_exn @@ Of_sexp.of_sexp_string s in
-  (* let timere =
-   *   (fun max_height max_branching randomness ->
-   *      Builder.build ~min_year:2000 ~max_year_inc:2002 ~max_height ~max_branching
-   *        ~randomness)
-   *     2 1 [ 231; 495; 914; 495 ]
-   * in *)
+  (*   let s = {|
+   * (unchunk (drop 3 (chunk_at_month_boundary (all))))
+   *     |} in
+   *   let timere = CCResult.get_exn @@ Of_sexp.of_sexp_string s in *)
+  let timere =
+    (fun max_height max_branching randomness ->
+       let max_height = 1 + max_height in
+       let max_branching = 1 + max_branching in
+       Builder.build ~enable_extra_restrictions:false ~min_year:2000
+         ~max_year_inc:2002 ~max_height ~max_branching ~randomness)
+      1 2 [ 738 ]
+  in
   (* let timere =
    *   let open Time in
    *   after (Duration.make ~seconds:1 ())
@@ -88,20 +90,20 @@ let debug_resolver () =
     |> CCOpt.get_exn
   in
   let timere' =
-    Time.(inter [ timere; interval_exc search_start search_end_exc ])
+    Time.(inter [ timere; interval_exact_exc search_start search_end_exc ])
   in
   print_endline "^^^^^";
   print_endline (To_sexp.to_sexp_string timere');
   print_endline "=====";
-  (match Resolver.resolve timere with
+  (match Resolver.resolve timere' with
    | Error msg -> print_endline msg
    | Ok s -> display_intervals ~display_using_tz:tz s);
   print_endline "=====";
-  (* let s =
-   *   Simple_resolver.resolve ~search_start ~search_end_exc
-   *     ~search_using_tz:Time_zone.utc timere
-   * in
-   * display_intervals ~display_using_tz:tz s; *)
+  let s =
+    Simple_resolver.resolve ~search_start ~search_end_exc
+      ~search_using_tz:Time_zone.utc timere
+  in
+  display_intervals ~display_using_tz:tz s;
   print_newline ()
 
 let debug_ccsexp_parse_string () = CCSexp.parse_string "\"\\256\"" |> ignore
@@ -165,11 +167,13 @@ let debug_fuzz_after () =
       0 3
       [ 891; 891; 891; 926; 907 ]
   in
-  let s1 = Resolver.aux tz t1 in
-  let s2 = Resolver.aux tz t2 in
+  let t1' = Resolver.t_of_ast t1 in
+  let t2' = Resolver.t_of_ast t2 in
+  let s1 = Resolver.aux tz t1' in
+  let s2 = Resolver.aux tz t2' in
   let l1 = CCList.of_seq s1 in
   let l2 = CCList.of_seq s2 in
-  let s = Resolver.(aux_after tz Time.default_search_space bound s1 s2 t1 t2) in
+  let s = Resolver.(aux_after tz default_search_space bound s1 s2 t1' t2') in
   print_endline "=====";
   print_endline (To_sexp.to_sexp_string t1);
   display_intervals ~display_using_tz:tz s1;
@@ -213,11 +217,13 @@ let debug_fuzz_between_exc () =
          ~max_year_inc:2002 ~max_height ~max_branching ~randomness)
       1 3 [ 713 ]
   in
-  let s1 = Resolver.aux tz t1 in
-  let s2 = Resolver.aux tz t2 in
+  let t1' = Resolver.t_of_ast t1 in
+  let t2' = Resolver.t_of_ast t2 in
+  let s1 = Resolver.aux tz t1' in
+  let s2 = Resolver.aux tz t2' in
   let l1 = CCList.of_seq s1 in
   let l2 = CCList.of_seq s2 in
-  let s = Resolver.(aux_after tz Time.default_search_space bound s1 s2 t1 t2) in
+  let s = Resolver.(aux_after tz default_search_space bound s1 s2 t1' t2') in
   print_endline "=====";
   display_intervals ~display_using_tz:tz s1;
   print_endline (To_sexp.to_sexp_string t1);
@@ -259,9 +265,11 @@ let debug_fuzz_union () =
          ~max_year_inc:2002 ~max_height ~max_branching ~randomness)
       1 0 [ 113 ]
   in
-  let s1 = Resolver.aux tz t1 |> Resolver.normalize in
-  let s2 = Resolver.aux tz t2 in
-  let l = [ t1 ] in
+  let t1' = Resolver.t_of_ast t1 in
+  let t2' = Resolver.t_of_ast t2 in
+  let s1 = Resolver.aux tz t1' |> Resolver.normalize in
+  let s2 = Resolver.aux tz t2' in
+  let l = [ t1' ] in
   let s' =
     l
     |> List.map (Resolver.aux tz)
@@ -288,13 +296,13 @@ let debug_fuzz_union () =
 
 (* let () = debug_parsing () *)
 
-(* let () = debug_resolver () *)
+let () = debug_resolver ()
 
 (* let () = debug_ccsexp_parse_string () *)
 
 (* let () = debug_example () *)
 
-let () = debug_fuzz_after ()
+(* let () = debug_fuzz_after () *)
 
 (* let () = debug_fuzz_between_exc () *)
 
