@@ -13,6 +13,19 @@ let time_tagged =
   Crowbar.map [ time ] (fun time ->
       time |> Resolver.t_of_ast |> Resolver.optimize_search_space Time_zone.utc)
 
+let time_restricted =
+  Crowbar.map
+    [ Crowbar.range 2; Crowbar.range 4; Crowbar.list (Crowbar.range 1000) ]
+    (fun max_height max_branching randomness ->
+       let max_height = 1 + max_height in
+       let max_branching = 1 + max_branching in
+       Builder.build ~enable_extra_restrictions:true ~min_year:2000
+         ~max_year_inc:2002 ~max_height ~max_branching ~randomness)
+
+let time_tagged_restricted =
+  Crowbar.map [ time_restricted ] (fun time ->
+      time |> Resolver.t_of_ast |> Resolver.optimize_search_space Time_zone.utc)
+
 let pattern =
   Crowbar.map
     [ Crowbar.list (Crowbar.range 5000) ]

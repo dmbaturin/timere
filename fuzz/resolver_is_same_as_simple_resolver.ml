@@ -21,14 +21,14 @@ let search_end_exc =
   |> CCOpt.get_exn
 
 let () =
-  Crowbar.add_test ~name:"resolver_is_same_as_simple_resolver" [ time ]
-    (fun t ->
-       Crowbar.check_eq ~eq:(OSeq.equal ~eq:( = ))
-         (CCResult.get_exn
-          @@ Resolver.resolve
-            Time.(
-              inter
-                [ t; interval_exact_dt_exc search_start_dt search_end_exc_dt ])
-         )
-         (Simple_resolver.resolve ~search_start ~search_end_exc
-            ~search_using_tz:Time_zone.utc t))
+  Crowbar.add_test ~name:"resolver_is_same_as_simple_resolver"
+    [ time_restricted ] (fun t ->
+        Crowbar.check_eq ~eq:(OSeq.equal ~eq:( = ))
+          (CCResult.get_exn
+           @@ Resolver.resolve
+             Time.(
+               inter
+                 [ t; interval_exact_dt_exc search_start_dt search_end_exc_dt ])
+          )
+          (Simple_resolver.resolve ~search_start ~search_end_exc
+             ~search_using_tz:Time_zone.utc t))
