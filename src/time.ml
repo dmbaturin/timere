@@ -1355,17 +1355,13 @@ let equal t1 t2 =
     match (t1, t2) with
     | Empty, Empty -> true
     | All, All -> true
-    | Timestamp_interval_seq s1, Timestamp_interval_seq s2 ->
-      OSeq.equal ~eq:( = ) s1 s2
     | Pattern p1, Pattern p2 -> Pattern.equal p1 p2
+    | Point t1, Point t2 -> t1 = t2
     | Unary_op (op1, t1), Unary_op (op2, t2) ->
       equal_unary_op op1 op2 && aux t1 t2
-    | Interval_inc (x11, x12), Interval_inc (x21, x22)
-    | Interval_exc (x11, x12), Interval_exc (x21, x22) ->
-      x11 = x21 && x12 = x22
     | After (b1, x11, x12), After (b2, x21, x22)
-    | Between_inc (b1, x11, x12), Between_inc (b2, x21, x22)
-    | Between_exc (b1, x11, x12), Between_exc (b2, x21, x22) ->
+    | Interval_inc (b1, x11, x12), Interval_inc (b2, x21, x22)
+    | Interval_exc (b1, x11, x12), Interval_exc (b2, x21, x22) ->
       b1 = b2 && aux x11 x21 && aux x12 x22
     | Round_robin_pick_list (l1), Round_robin_pick_list (l2) ->
       List.for_all2 aux l1 l2
@@ -1544,44 +1540,44 @@ let nth (n : int) (c : chunked) : chunked =
 let drop (n : int) (c : chunked) : chunked =
   if n < 0 then invalid_arg "skip_n: n < 0" else Unary_op_on_chunked (Drop n, c)
 
-let interval_inc (a : timestamp) (b : timestamp) : t =
+let interval_exact_inc (a : timestamp) (b : timestamp) : t =
   match Date_time'.of_timestamp a with
   | Error () -> invalid_arg "interval_inc: invalid timestamp"
   | Ok _ -> (
       match Date_time'.of_timestamp b with
       | Error () -> invalid_arg "interval_inc: invalid timestamp"
       | Ok _ ->
-        if a <= b then Interval_inc (a, b)
+        if a <= b then Interval_inc (Int64.sub b a, Point a, Point b)
         else invalid_arg "interval_inc: a > b")
 
-let interval_exc (a : timestamp) (b : timestamp) : t =
+let interval_exact_exc (a : timestamp) (b : timestamp) : t =
   match Date_time'.of_timestamp a with
   | Error () -> invalid_arg "interval_exc: invalid timestamp"
   | Ok _ -> (
       match Date_time'.of_timestamp b with
       | Error () -> invalid_arg "interval_exc: invalid timestamp"
       | Ok _ ->
-        if a <= b then Interval_exc (a, b)
+        if a <= b then Interval_exc (Int64.sub b a, Point a, Point b)
         else invalid_arg "interval_exc: a > b")
 
-let interval_dt_inc (a : Date_time'.t) (b : Date_time'.t) : t =
+let interval_exact_dt_inc (a : Date_time'.t) (b : Date_time'.t) : t =
   let a =
     CCOpt.get_exn Date_time'.(min_of_timestamp_local_result @@ to_timestamp a)
   in
   let b =
     CCOpt.get_exn Date_time'.(max_of_timestamp_local_result @@ to_timestamp b)
   in
-  if a <= b then Interval_inc (a, b)
+  if a <= b then Interval_inc (Int64.sub b a, Point a, Point b)
   else invalid_arg "interval_dt_inc: a > b"
 
-let interval_dt_exc (a : Date_time'.t) (b : Date_time'.t) : t =
+let interval_exact_dt_exc (a : Date_time'.t) (b : Date_time'.t) : t =
   let a =
     CCOpt.get_exn Date_time'.(min_of_timestamp_local_result @@ to_timestamp a)
   in
   let b =
     CCOpt.get_exn Date_time'.(max_of_timestamp_local_result @@ to_timestamp b)
   in
-  if a <= b then Interval_exc (a, b)
+  if a <= b then Interval_exc (Int64.sub b a, Point a, Point b)
   else invalid_arg "interval_dt_exc: a > b"
 
 let not (a : t) : t = Unary_op (Not, a)
@@ -1692,11 +1688,11 @@ let seconds seconds = pattern ~seconds ()
 let after (bound : Duration.t) (t1 : t) (t2 : t) : t =
   After (Duration.to_seconds bound, t1, t2)
 
-let between_inc (bound : Duration.t) (t1 : t) (t2 : t) : t =
-  Between_inc (Duration.to_seconds bound, t1, t2)
+let interval_inc (bound : Duration.t) (t1 : t) (t2 : t) : t =
+  Interval_inc (Duration.to_seconds bound, t1, t2)
 
-let between_exc (bound : Duration.t) (t1 : t) (t2 : t) : t =
-  Between_exc (Duration.to_seconds bound, t1, t2)
+let interval_exc (bound : Duration.t) (t1 : t) (t2 : t) : t =
+  Interval_exc (Duration.to_seconds bound, t1, t2)
 
 (* let hms_interval_exc (hms_a : hms) (hms_b : hms) : t =
  *   let a = second_of_day_of_hms hms_a in
@@ -1719,7 +1715,7 @@ let between_exc (bound : Duration.t) (t1 : t) (t2 : t) : t =
  *          ~seconds:[ hms_a.second ] ()) *)
 
 let hms_interval_exc (hms_a : hms) (hms_b : hms) : t =
-  between_exc (Duration.make ~days:1 ())
+  interval_exc (Duration.make ~days:1 ())
     (pattern ~hours:[ hms_a.hour ] ~minutes:[ hms_a.minute ]
        ~seconds:[ hms_a.second ] ())
     (pattern ~hours:[ hms_b.hour ] ~minutes:[ hms_b.minute ]
@@ -1751,7 +1747,10 @@ let of_sorted_interval_seq ?(skip_invalid : bool = false)
   in
   match s () with
   | Seq.Nil -> Empty
-  | _ -> Timestamp_interval_seq (s)
+  | _ ->
+    Union_seq (
+      Seq.map (fun (x, y) -> interval_exact_exc x y) s
+    )
 
 let of_sorted_intervals ?(skip_invalid : bool = false)
     (l : (int64 * int64) list) : t =
@@ -1776,7 +1775,10 @@ let of_intervals ?(skip_invalid : bool = false) (l : (int64 * int64) list) : t =
   in
   match s () with
   | Seq.Nil -> Empty
-  | _ -> Timestamp_interval_seq (s)
+  | _ ->
+    Union_seq (
+      Seq.map (fun (x, y) -> interval_exact_exc x y) s
+    )
 
 let of_interval_seq ?(skip_invalid : bool = false) (s : (int64 * int64) Seq.t) :
   t =
