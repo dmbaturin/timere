@@ -229,8 +229,7 @@ let of_sexp (x : CCSexp.t) =
         | `Atom "union" :: l -> union (List.map aux l)
         | [ `Atom "follow"; b; t1; t2 ] ->
           follow (duration_of_sexp b) (aux t1) (aux t2)
-        | [ `Atom "point"; p ] ->
-          of_timestamp (timestamp_of_sexp p)
+        | [ `Atom "point"; p ] -> of_timestamp (timestamp_of_sexp p)
         | [ `Atom "interval_inc"; b; t1; t2 ] ->
           interval_inc (duration_of_sexp b) (aux t1) (aux t2)
         | [ `Atom "interval_exc"; b; t1; t2 ] ->

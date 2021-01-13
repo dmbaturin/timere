@@ -539,8 +539,8 @@ and aux_follow search_using_tz space bound s1 s2 t1 t2 =
               Seq.Cons ((start2, end_exc2), aux_follow' rest1 s2 t1 t2)
             else
               let s1, t1 =
-                maybe_slice_start_spec_of_follow ~last_start2:start2 ~rest1 ~t1
-                  search_using_tz bound
+                maybe_slice_start_spec_of_follow ~last_start2:start2 ~rest1
+                  ~t1 search_using_tz bound
               in
               aux_follow' s1 s2 t1 t2)
   in
@@ -573,8 +573,8 @@ and aux_interval inc_or_exc search_using_tz space bound s1 s2 t1 t2 =
               fun () -> Seq.Cons (interval, aux_interval' rest1 s2 t1 t2)
             else
               let s1, t1 =
-                maybe_slice_start_spec_of_follow ~last_start2:start2 ~rest1 ~t1
-                  search_using_tz bound
+                maybe_slice_start_spec_of_follow ~last_start2:start2 ~rest1
+                  ~t1 search_using_tz bound
               in
               aux_interval' s1 s2 t1 t2)
   in
