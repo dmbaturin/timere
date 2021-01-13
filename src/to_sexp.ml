@@ -128,22 +128,27 @@ let to_sexp (t : Time_ast.t) : CCSexp.t =
     match t with
     | All -> CCSexp.(list [ atom "all" ])
     | Empty -> CCSexp.(list [ atom "empty" ])
-    | Timestamp_interval_seq s ->
-      let l =
-        s
-        |> CCList.of_seq
-        |> List.map (fun (x, y) ->
-            CCSexp.list [ sexp_of_timestamp x; sexp_of_timestamp y ])
-      in
-      CCSexp.list (CCSexp.atom "intervals" :: l)
     | Pattern pat -> sexp_of_pattern pat
+    | Point p -> CCSexp.(list [atom "point"; sexp_of_timestamp p])
+    | Interval_inc (b, t1, t2) ->
+      CCSexp.(
+        list
+          [
+            atom "interval_inc";
+            Duration.of_seconds b |> sexp_of_duration;
+            aux t1;
+            aux t2;
+          ])
+    | Interval_exc (b, t1, t2) ->
+      CCSexp.(
+        list
+          [
+            atom "interval_exc";
+            Duration.of_seconds b |> sexp_of_duration;
+            aux t1;
+            aux t2;
+          ])
     | Unary_op (op, t) -> CCSexp.list (sexp_list_of_unary_op op @ [ aux t ])
-    | Interval_inc (a, b) ->
-      let open CCSexp in
-      list [ atom "interval_inc"; sexp_of_timestamp a; sexp_of_timestamp b ]
-    | Interval_exc (a, b) ->
-      let open CCSexp in
-      list [ atom "interval_exc"; sexp_of_timestamp a; sexp_of_timestamp b ]
     | Round_robin_pick_list (l) ->
       CCSexp.(list (atom "round_robin" :: List.map aux l))
     | Inter_seq (s) ->
@@ -155,24 +160,6 @@ let to_sexp (t : Time_ast.t) : CCSexp.t =
         list
           [
             atom "after";
-            Duration.of_seconds b |> sexp_of_duration;
-            aux t1;
-            aux t2;
-          ])
-    | Between_inc (b, t1, t2) ->
-      CCSexp.(
-        list
-          [
-            atom "between_inc";
-            Duration.of_seconds b |> sexp_of_duration;
-            aux t1;
-            aux t2;
-          ])
-    | Between_exc (b, t1, t2) ->
-      CCSexp.(
-        list
-          [
-            atom "between_exc";
             Duration.of_seconds b |> sexp_of_duration;
             aux t1;
             aux t2;

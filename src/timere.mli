@@ -404,26 +404,26 @@ val of_sorted_timestamp_seq : ?skip_invalid:bool -> timestamp Seq.t -> t
 
 (** {1 Manual intervals} *)
 
-val interval_dt_inc : Date_time.t -> Date_time.t -> t
-(** [interval_dt_inc x y]
+val interval_exact_dt_inc : Date_time.t -> Date_time.t -> t
+(** [interval_exact_dt_inc x y]
 
     @raise Invalid_argument if [x > y]
 *)
 
-val interval_dt_exc : Date_time.t -> Date_time.t -> t
-(** [interval_dt_exc x y]
+val interval_exact_dt_exc : Date_time.t -> Date_time.t -> t
+(** [interval_exact_dt_exc x y]
 
     @raise Invalid_argument if [x > y]
 *)
 
-val interval_inc : timestamp -> timestamp -> t
-(** [interval_inc x y]
+val interval_exact_inc : timestamp -> timestamp -> t
+(** [interval_exact_inc x y]
     @raise Invalid_argument if [x > y]
     @raise Invalid_argument if [x] or [y] is not a valid timestamp
 *)
 
-val interval_exc : timestamp -> timestamp -> t
-(** [interval_exc x y]
+val interval_exact_exc : timestamp -> timestamp -> t
+(** [interval_exact_exc x y]
     @raise Invalid_argument if [x > y]
     @raise Invalid_argument if [x] or [y] is not a valid timestamp
 *)
@@ -575,16 +575,16 @@ val after : Duration.t -> t -> t -> t
     if exists
 *)
 
-val between_inc : Duration.t -> t -> t -> t
-(** [between_inc bound s1 s2],
+val interval_inc : Duration.t -> t -> t -> t
+(** [interval_inc bound s1 s2],
     for every interval [(x1, y1)] in [s1],
     and the earliest interval [(x2, y2)] in [s2] such that
     [y1 <= x2 && (x2 - y1) <= bound],
     yields [(x1, y2)]
 *)
 
-val between_exc : Duration.t -> t -> t -> t
-(** [between_inc bound s1 s2],
+val interval_exc : Duration.t -> t -> t -> t
+(** [interval_inc bound s1 s2],
     for every interval [(x1, y1)] in [s1],
     and the earliest interval [(x2, y2)] in [s2] such that
     [y1 <= x2 && (x2 - y1) <= bound],

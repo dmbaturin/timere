@@ -1542,23 +1542,23 @@ let drop (n : int) (c : chunked) : chunked =
 
 let interval_exact_inc (a : timestamp) (b : timestamp) : t =
   match Date_time'.of_timestamp a with
-  | Error () -> invalid_arg "interval_inc: invalid timestamp"
+  | Error () -> invalid_arg "interval_exact_inc: invalid timestamp"
   | Ok _ -> (
       match Date_time'.of_timestamp b with
-      | Error () -> invalid_arg "interval_inc: invalid timestamp"
+      | Error () -> invalid_arg "interval_exact_inc: invalid timestamp"
       | Ok _ ->
         if a <= b then Interval_inc (Int64.sub b a, Point a, Point b)
-        else invalid_arg "interval_inc: a > b")
+        else invalid_arg "interval_exact_inc: a > b")
 
 let interval_exact_exc (a : timestamp) (b : timestamp) : t =
   match Date_time'.of_timestamp a with
-  | Error () -> invalid_arg "interval_exc: invalid timestamp"
+  | Error () -> invalid_arg "interval_exact_exc: invalid timestamp"
   | Ok _ -> (
       match Date_time'.of_timestamp b with
-      | Error () -> invalid_arg "interval_exc: invalid timestamp"
+      | Error () -> invalid_arg "interval_exact_exc: invalid timestamp"
       | Ok _ ->
         if a <= b then Interval_exc (Int64.sub b a, Point a, Point b)
-        else invalid_arg "interval_exc: a > b")
+        else invalid_arg "interval_exact_exc: a > b")
 
 let interval_exact_dt_inc (a : Date_time'.t) (b : Date_time'.t) : t =
   let a =
@@ -1568,7 +1568,7 @@ let interval_exact_dt_inc (a : Date_time'.t) (b : Date_time'.t) : t =
     CCOpt.get_exn Date_time'.(max_of_timestamp_local_result @@ to_timestamp b)
   in
   if a <= b then Interval_inc (Int64.sub b a, Point a, Point b)
-  else invalid_arg "interval_dt_inc: a > b"
+  else invalid_arg "interval_exact_dt_inc: a > b"
 
 let interval_exact_dt_exc (a : Date_time'.t) (b : Date_time'.t) : t =
   let a =
@@ -1578,7 +1578,7 @@ let interval_exact_dt_exc (a : Date_time'.t) (b : Date_time'.t) : t =
     CCOpt.get_exn Date_time'.(max_of_timestamp_local_result @@ to_timestamp b)
   in
   if a <= b then Interval_exc (Int64.sub b a, Point a, Point b)
-  else invalid_arg "interval_dt_exc: a > b"
+  else invalid_arg "interval_exact_dt_exc: a > b"
 
 let not (a : t) : t = Unary_op (Not, a)
 

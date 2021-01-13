@@ -211,16 +211,6 @@ let of_sexp (x : CCSexp.t) =
         match l with
         | [ `Atom "all" ] -> always
         | [ `Atom "empty" ] -> empty
-        | `Atom "intervals" :: l ->
-          l
-          |> List.map (fun x ->
-              match x with
-              | `List [ x; y ] -> (timestamp_of_sexp x, timestamp_of_sexp y)
-              | _ ->
-                invalid_data
-                  (Printf.sprintf "Expected list for interval: %s"
-                     (CCSexp.to_string x)))
-          |> of_sorted_intervals ~skip_invalid:false
         | `Atom "pattern" :: _ -> pattern_of_sexp x
         | [ `Atom "not"; x ] -> not (aux x)
         | [ `Atom "drop_points"; n; x ] -> drop_points (int_of_sexp n) (aux x)
@@ -234,19 +224,15 @@ let of_sexp (x : CCSexp.t) =
         | [ `Atom "with_tz"; n; x ] ->
           let tz = tz_of_sexp n in
           with_tz tz (aux x)
-        | [ `Atom "interval_inc"; a; b ] ->
-          interval_dt_inc (date_time_of_sexp a) (date_time_of_sexp b)
-        | [ `Atom "interval_exc"; a; b ] ->
-          interval_dt_exc (date_time_of_sexp a) (date_time_of_sexp b)
         | `Atom "round_robin" :: l -> round_robin_pick (List.map aux l)
         | `Atom "inter" :: l -> inter (List.map aux l)
         | `Atom "union" :: l -> union (List.map aux l)
         | [ `Atom "after"; b; t1; t2 ] ->
           after (duration_of_sexp b) (aux t1) (aux t2)
-        | [ `Atom "between_inc"; b; t1; t2 ] ->
-          between_inc (duration_of_sexp b) (aux t1) (aux t2)
-        | [ `Atom "between_exc"; b; t1; t2 ] ->
-          between_exc (duration_of_sexp b) (aux t1) (aux t2)
+        | [ `Atom "interval_inc"; b; t1; t2 ] ->
+          interval_inc (duration_of_sexp b) (aux t1) (aux t2)
+        | [ `Atom "interval_exc"; b; t1; t2 ] ->
+          interval_exc (duration_of_sexp b) (aux t1) (aux t2)
         | [ `Atom "unchunk"; x ] -> aux_chunked CCFun.id x
         | _ ->
           invalid_data
