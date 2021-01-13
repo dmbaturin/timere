@@ -156,9 +156,13 @@ let propagate_search_space_bottom_up default_tz (time : t) : t =
         get_search_space t2
         |> Misc_utils.last_element_of_list
         |> CCOpt.get_exn
-        |> fst
+        |> snd
       in
-      let space = [ (space_start1, space_end_exc2) ] in
+      let space =
+        if space_start1 <= space_end_exc2 then
+          [ (space_start1, space_end_exc2) ]
+        else []
+      in
       Interval_inc (space, b, t1, t2)
     | Interval_exc (_, b, t1, t2) ->
       let space_start1 = fst @@ List.hd @@ get_search_space t1 in
@@ -166,9 +170,13 @@ let propagate_search_space_bottom_up default_tz (time : t) : t =
         get_search_space t2
         |> Misc_utils.last_element_of_list
         |> CCOpt.get_exn
-        |> fst
+        |> snd
       in
-      let space = [ (space_start1, space_end_exc2) ] in
+      let space =
+        if space_start1 <= space_end_exc2 then
+          [ (space_start1, space_end_exc2) ]
+        else []
+      in
       Interval_exc (space, b, t1, t2)
     | Unary_op (_, op, t) -> (
         match op with
@@ -176,6 +184,12 @@ let propagate_search_space_bottom_up default_tz (time : t) : t =
         | With_tz tz ->
           let t = aux tz t in
           Unary_op (get_search_space t, op, t)
+        | Shift n ->
+          let space =
+            get_search_space t
+            |> List.map (fun (x, y) -> (Int64.add x n, Int64.add y n))
+          in
+          Unary_op (space, op, t)
         | _ ->
           let t = aux tz t in
           Unary_op (get_search_space t, op, t))

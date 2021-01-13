@@ -121,25 +121,54 @@ let debug_example () =
           let size_str = Printers.sprint_duration size in
           Printf.printf "%s - %s\n" s size_str)
   in
-  let tz = Time_zone.make_exn "Australia/Sydney" in
+  let open Time in
+  let open Infix in
+  (* let tz = Time_zone.make_exn "Australia/Sydney" in *)
+  let tz = Time_zone.utc in
+  let first_weekday_of_month wday =
+    follow (Duration.make ~days:7 ()) (month_days [ 1 ]) (weekdays [ wday ])
+  in
+  let second_weekday_of_month wday =
+    shift (Duration.make ~days:7 ()) (first_weekday_of_month wday)
+  in
+  let third_weekday_of_month wday =
+    shift (Duration.make ~days:14 ()) (first_weekday_of_month wday)
+  in
+  let fourth_weekday_of_month wday =
+    shift (Duration.make ~days:21 ()) (first_weekday_of_month wday)
+  in
+  let fifth_weekday_of_month wday =
+    follow (Duration.make ~days:7 ())
+      (shift (Duration.make ~days:1 ()) (fourth_weekday_of_month wday))
+      (interval_inc (Duration.make ~days:7 ())
+         (month_days [ -7 ])
+         (month_days [ -1 ])
+       & weekdays [ wday ])
+  in
+  let search_start_dt =
+    Time.Date_time'.make ~year:2000 ~month:`Jan ~day:1 ~hour:10 ~minute:0
+      ~second:0 ~tz
+    |> CCResult.get_exn
+  in
+  let search_start =
+    Time.Date_time'.to_timestamp search_start_dt
+    |> Time.Date_time'.min_of_timestamp_local_result
+    |> CCOpt.get_exn
+  in
+  let search_end_exc_dt =
+    Time.Date_time'.make ~year:2022 ~month:`Jan ~day:1 ~hour:0 ~minute:0
+      ~second:0 ~tz
+    |> CCResult.get_exn
+  in
+  let search_end_exc =
+    Time.Date_time'.to_timestamp search_end_exc_dt
+    |> Time.Date_time'.max_of_timestamp_local_result
+    |> CCOpt.get_exn
+  in
   let timere =
-    let open Time in
-    with_tz tz
-      (inter
-         [
-           years [ 2020; 2021; 2022; 2023; 2025; 2026 ] (* in year 2020 *);
-           union
-             [
-               pattern ~months:[ `Apr ]
-                 ~month_day_ranges:[ `Range_inc (3, 6) ]
-                 ()
-               (* in April 3 to 6 *);
-               (* pattern ~months:[`Oct] ~month_day_ranges:[`Range_inc (2, 5)] () (\* or in Oct 2 to 5 *\); *)
-             ];
-           (* hms_interval_exc (\* 11pm to 3am *\)
-            *   (make_hms_exn ~hour:23 ~minute:0 ~second:0)
-            *   (make_hms_exn ~hour:3 ~minute:0 ~second:0); *)
-         ])
+    (* (interval_exact_exc search_start search_end_exc)
+     * & *)
+    years [ 2021 ] & fifth_weekday_of_month `Fri
   in
   match Resolver.resolve timere with
   | Error msg -> print_endline msg
@@ -296,11 +325,11 @@ let debug_fuzz_union () =
 
 (* let () = debug_parsing () *)
 
-let () = debug_resolver ()
+(* let () = debug_resolver () *)
 
 (* let () = debug_ccsexp_parse_string () *)
 
-(* let () = debug_example () *)
+let () = debug_example ()
 
 (* let () = debug_fuzz_after () *)
 
