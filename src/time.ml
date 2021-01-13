@@ -1,5 +1,6 @@
 open Date_components
 open Time_ast
+open Int64_utils
 
 type tz_offset_s = int
 
@@ -1535,7 +1536,7 @@ let interval_exact_inc (a : timestamp) (b : timestamp) : t =
       match Date_time'.of_timestamp b with
       | Error () -> invalid_arg "interval_exact_inc: invalid timestamp"
       | Ok _ ->
-        if a <= b then Interval_inc (Int64.sub b a, Point a, Point b)
+        if a <= b then Interval_inc (b -^ a, Point a, Point b)
         else invalid_arg "interval_exact_inc: a > b")
 
 let interval_exact_exc (a : timestamp) (b : timestamp) : t =
@@ -1545,7 +1546,7 @@ let interval_exact_exc (a : timestamp) (b : timestamp) : t =
       match Date_time'.of_timestamp b with
       | Error () -> invalid_arg "interval_exact_exc: invalid timestamp"
       | Ok _ ->
-        if a <= b then Interval_exc (Int64.sub b a, Point a, Point b)
+        if a <= b then Interval_exc (b -^ a, Point a, Point b)
         else invalid_arg "interval_exact_exc: a > b")
 
 let interval_exact_dt_inc (a : Date_time'.t) (b : Date_time'.t) : t =
