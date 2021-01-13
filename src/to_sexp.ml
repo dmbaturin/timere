@@ -54,10 +54,7 @@ let sexp_of_pattern (pat : Pattern.t) : CCSexp.t =
     pat.years |> Int_set.to_seq |> CCList.of_seq |> sexp_list_of_ints
   in
   let months =
-    pat.months
-    |> Month_set.to_seq
-    |> CCList.of_seq
-    |> List.map sexp_of_month
+    pat.months |> Month_set.to_seq |> CCList.of_seq |> List.map sexp_of_month
   in
   let month_days =
     pat.month_days |> Int_set.to_seq |> CCList.of_seq |> sexp_list_of_ints
@@ -129,7 +126,7 @@ let to_sexp (t : Time_ast.t) : CCSexp.t =
     | All -> CCSexp.(list [ atom "all" ])
     | Empty -> CCSexp.(list [ atom "empty" ])
     | Pattern pat -> sexp_of_pattern pat
-    | Point p -> CCSexp.(list [atom "point"; sexp_of_timestamp p])
+    | Point p -> CCSexp.(list [ atom "point"; sexp_of_timestamp p ])
     | Interval_inc (b, t1, t2) ->
       CCSexp.(
         list
@@ -149,11 +146,11 @@ let to_sexp (t : Time_ast.t) : CCSexp.t =
             aux t2;
           ])
     | Unary_op (op, t) -> CCSexp.list (sexp_list_of_unary_op op @ [ aux t ])
-    | Round_robin_pick_list (l) ->
+    | Round_robin_pick_list l ->
       CCSexp.(list (atom "round_robin" :: List.map aux l))
-    | Inter_seq (s) ->
+    | Inter_seq s ->
       CCSexp.(list (atom "inter" :: (s |> Seq.map aux |> CCList.of_seq)))
-    | Union_seq (s) ->
+    | Union_seq s ->
       CCSexp.(list (atom "union" :: (s |> Seq.map aux |> CCList.of_seq)))
     | After (b, t1, t2) ->
       CCSexp.(
@@ -164,8 +161,7 @@ let to_sexp (t : Time_ast.t) : CCSexp.t =
             aux t1;
             aux t2;
           ])
-    | Unchunk (chunked) ->
-      CCSexp.(list [ atom "unchunk"; aux_chunked chunked ])
+    | Unchunk chunked -> CCSexp.(list [ atom "unchunk"; aux_chunked chunked ])
   and aux_chunked chunked =
     let sexp_list_of_unary_op_on_t op =
       let open CCSexp in

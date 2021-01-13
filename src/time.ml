@@ -1363,12 +1363,11 @@ let equal t1 t2 =
     | Interval_inc (b1, x11, x12), Interval_inc (b2, x21, x22)
     | Interval_exc (b1, x11, x12), Interval_exc (b2, x21, x22) ->
       b1 = b2 && aux x11 x21 && aux x12 x22
-    | Round_robin_pick_list (l1), Round_robin_pick_list (l2) ->
+    | Round_robin_pick_list l1, Round_robin_pick_list l2 ->
       List.for_all2 aux l1 l2
-    | Inter_seq (s1), Inter_seq (s2) | Union_seq (s1), Union_seq (s2)
-      ->
+    | Inter_seq s1, Inter_seq s2 | Union_seq s1, Union_seq s2 ->
       OSeq.for_all2 aux s1 s2
-    | Unchunk (c1), Unchunk (c2) -> aux_chunked c1 c2
+    | Unchunk c1, Unchunk c2 -> aux_chunked c1 c2
     | _, _ -> false
   and aux_chunked c1 c2 =
     match (c1, c2) with
@@ -1382,32 +1381,26 @@ let equal t1 t2 =
 let chunk (chunking : chunking) (f : chunked -> chunked) t : t =
   match chunking with
   | `Disjoint_intervals ->
-    Unchunk
-      (f (Unary_op_on_t (Chunk_disjoint_interval, t)))
+    Unchunk (f (Unary_op_on_t (Chunk_disjoint_interval, t)))
   | `By_duration duration ->
     let chunk_size = Duration.to_seconds duration in
     if chunk_size < 1L then invalid_arg "chunk"
     else
       Unchunk
-        ( 
-          f
-            (Unary_op_on_t
-               (Chunk_by_duration { chunk_size; drop_partial = false }, t)) )
+        (f
+           (Unary_op_on_t
+              (Chunk_by_duration { chunk_size; drop_partial = false }, t)))
   | `By_duration_drop_partial duration ->
     let chunk_size = Duration.to_seconds duration in
     if chunk_size < 1L then invalid_arg "chunk"
     else
       Unchunk
-        ( 
-          f
-            (Unary_op_on_t
-               (Chunk_by_duration { chunk_size; drop_partial = true }, t)) )
-  | `At_year_boundary ->
-    Unchunk
-      (f (Unary_op_on_t (Chunk_at_year_boundary, t)))
+        (f
+           (Unary_op_on_t
+              (Chunk_by_duration { chunk_size; drop_partial = true }, t)))
+  | `At_year_boundary -> Unchunk (f (Unary_op_on_t (Chunk_at_year_boundary, t)))
   | `At_month_boundary ->
-    Unchunk
-      (f (Unary_op_on_t (Chunk_at_month_boundary, t)))
+    Unchunk (f (Unary_op_on_t (Chunk_at_month_boundary, t)))
 
 let chunk_again (chunking : chunking) chunked : chunked =
   match chunking with
@@ -1460,7 +1453,7 @@ type inter_pattern_acc =
 let inter_seq (s : t Seq.t) : t =
   let flatten s =
     Seq.flat_map
-      (fun x -> match x with Inter_seq (s) -> s | _ -> Seq.return x)
+      (fun x -> match x with Inter_seq s -> s | _ -> Seq.return x)
       s
   in
   let inter_patterns s =
@@ -1471,7 +1464,7 @@ let inter_seq (s : t Seq.t) : t =
       Seq.fold_left
         (fun acc x ->
            match x with
-           | Pattern (pat) -> (
+           | Pattern pat -> (
                match acc with
                | Uninitialized -> Some' pat
                | Unsatisfiable -> Unsatisfiable
@@ -1485,22 +1478,18 @@ let inter_seq (s : t Seq.t) : t =
     match pattern with
     | Uninitialized -> Some rest
     | Unsatisfiable -> None
-    | Some' pat ->
-      Some (fun () -> Seq.Cons (Pattern (pat), rest))
+    | Some' pat -> Some (fun () -> Seq.Cons (Pattern pat, rest))
   in
   let s = flatten s in
   if OSeq.exists (fun x -> match x with Empty -> true | _ -> false) s then empty
-  else
-    match inter_patterns s with
-    | None -> empty
-    | Some s -> Inter_seq (s)
+  else match inter_patterns s with None -> empty | Some s -> Inter_seq s
 
 let inter (l : t list) : t = inter_seq (CCList.to_seq l)
 
 let union_seq (s : t Seq.t) : t =
   let flatten s =
     Seq.flat_map
-      (fun x -> match x with Union_seq (s) -> s | _ -> Seq.return x)
+      (fun x -> match x with Union_seq s -> s | _ -> Seq.return x)
       s
   in
   let s =
@@ -1508,12 +1497,11 @@ let union_seq (s : t Seq.t) : t =
     |> flatten
     |> Seq.filter (fun x -> match x with Empty -> false | _ -> true)
   in
-  Union_seq (s)
+  Union_seq s
 
 let union (l : t list) : t = union_seq (CCList.to_seq l)
 
-let round_robin_pick (l : t list) : t =
-  Round_robin_pick_list (l)
+let round_robin_pick (l : t list) : t = Round_robin_pick_list l
 
 let first_point (a : t) : t = Unary_op (Take_points 1, a)
 
@@ -1646,16 +1634,15 @@ let pattern ?(years = []) ?(year_ranges = []) ?(months = [])
       let minutes = Int_set.of_list minutes in
       let seconds = Int_set.of_list seconds in
       Pattern
-        ( 
-          {
-            Pattern.years;
-            months;
-            month_days;
-            weekdays;
-            hours;
-            minutes;
-            seconds;
-          } )
+        {
+          Pattern.years;
+          months;
+          month_days;
+          weekdays;
+          hours;
+          minutes;
+          seconds;
+        }
     else invalid_arg "pattern"
 
 let month_day_ranges_are_valid_strict ~safe_month_day_range_inc day_ranges =
@@ -1747,10 +1734,7 @@ let of_sorted_interval_seq ?(skip_invalid : bool = false)
   in
   match s () with
   | Seq.Nil -> Empty
-  | _ ->
-    Union_seq (
-      Seq.map (fun (x, y) -> interval_exact_exc x y) s
-    )
+  | _ -> Union_seq (Seq.map (fun (x, y) -> interval_exact_exc x y) s)
 
 let of_sorted_intervals ?(skip_invalid : bool = false)
     (l : (int64 * int64) list) : t =
@@ -1775,10 +1759,7 @@ let of_intervals ?(skip_invalid : bool = false) (l : (int64 * int64) list) : t =
   in
   match s () with
   | Seq.Nil -> Empty
-  | _ ->
-    Union_seq (
-      Seq.map (fun (x, y) -> interval_exact_exc x y) s
-    )
+  | _ -> Union_seq (Seq.map (fun (x, y) -> interval_exact_exc x y) s)
 
 let of_interval_seq ?(skip_invalid : bool = false) (s : (int64 * int64) Seq.t) :
   t =
@@ -1811,21 +1792,9 @@ let interval_of_timestamp ~skip_invalid x =
   | Ok _ -> Some (x, Int64.succ x)
   | Error () -> if skip_invalid then None else raise Invalid_timestamp
 
-let of_timestamp_seq timestamps =
-  union_seq
-    (
-      Seq.map
-        of_timestamp
-        timestamps
-    )
+let of_timestamp_seq timestamps = union_seq (Seq.map of_timestamp timestamps)
 
-let of_timestamps timestamps =
-  union
-    (
-      List.map
-        of_timestamp
-        timestamps
-    )
+let of_timestamps timestamps = union (List.map of_timestamp timestamps)
 
 let of_sorted_timestamp_seq ?(skip_invalid = false) timestamps =
   timestamps

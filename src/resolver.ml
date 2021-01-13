@@ -32,22 +32,17 @@ let rec t_of_ast (ast : Time_ast.t) : t =
   match ast with
   | Empty -> Empty
   | All -> All
-  | Pattern p ->
-    Pattern (default_search_space, p)
-  | Point p ->
-    Point p
+  | Pattern p -> Pattern (default_search_space, p)
+  | Point p -> Point p
   | Interval_inc (bound, t1, t2) ->
     Interval_inc (default_search_space, bound, t_of_ast t1, t_of_ast t2)
   | Interval_exc (bound, t1, t2) ->
     Interval_exc (default_search_space, bound, t_of_ast t1, t_of_ast t2)
-  | Unary_op (op, t) ->
-    Unary_op (default_search_space, op, t_of_ast t)
+  | Unary_op (op, t) -> Unary_op (default_search_space, op, t_of_ast t)
   | Round_robin_pick_list l ->
     Round_robin_pick_list (default_search_space, List.map t_of_ast l)
-  | Inter_seq s ->
-    Inter_seq (default_search_space, Seq.map t_of_ast s)
-  | Union_seq s ->
-    Union_seq (default_search_space, Seq.map t_of_ast s)
+  | Inter_seq s -> Inter_seq (default_search_space, Seq.map t_of_ast s)
+  | Union_seq s -> Union_seq (default_search_space, Seq.map t_of_ast s)
   | After (bound, t1, t2) ->
     After (default_search_space, bound, t_of_ast t1, t_of_ast t2)
   | Unchunk chunked ->
@@ -55,8 +50,7 @@ let rec t_of_ast (ast : Time_ast.t) : t =
 
 and chunked_of_ast_chunked (c : Time_ast.chunked) : chunked =
   match c with
-  | Unary_op_on_t (op, t) ->
-    Unary_op_on_t (op, t_of_ast t)
+  | Unary_op_on_t (op, t) -> Unary_op_on_t (op, t_of_ast t)
   | Unary_op_on_chunked (op, chunked) ->
     Unary_op_on_chunked (op, chunked_of_ast_chunked chunked)
 
@@ -65,7 +59,7 @@ let get_search_space (time : t) : Time.Interval.t list =
   | All -> default_search_space
   | Empty -> []
   | Pattern (s, _) -> s
-  | Point p -> [ (p, Int64.succ p)]
+  | Point p -> [ (p, Int64.succ p) ]
   | Interval_inc (s, _, _, _) -> s
   | Interval_exc (s, _, _, _) -> s
   | Unary_op (s, _, _) -> s
@@ -86,9 +80,7 @@ let calibrate_search_space (time : t) space : search_space =
       match op with
       | Shift n -> List.map (fun (x, y) -> (Int64.sub x n, Int64.sub y n)) space
       | _ -> space)
-  | Round_robin_pick_list _ | Inter_seq _
-  | Union_seq _ ->
-    space
+  | Round_robin_pick_list _ | Inter_seq _ | Union_seq _ -> space
   | After (_, b, _, _) -> (
       match space with [] -> [] | (x, y) :: rest -> (Int64.sub x b, y) :: rest)
   | Unchunk _ -> space
@@ -412,7 +404,7 @@ let rec aux search_using_tz time =
        | Empty -> Seq.empty
        | All -> CCList.to_seq default_search_space
        | Pattern (space, pat) -> aux_pattern search_using_tz space pat
-       | Point p -> Seq.return ((p, Int64.succ p))
+       | Point p -> Seq.return (p, Int64.succ p)
        | Interval_inc (space, b, t1, t2) ->
          let s1 = get_start_spec_of_after search_using_tz space t1 in
          let s2 = aux search_using_tz t2 in
@@ -468,9 +460,7 @@ and aux_pattern search_using_tz space pat =
           space
       in
       Intervals.Union.union_multi_seq ~skip_check:true
-        (Seq.map
-           (fun param -> Pattern_resolver.resolve param pat)
-           params))
+        (Seq.map (fun param -> Pattern_resolver.resolve param pat) params))
 
 and get_start_spec_of_after search_using_tz space t =
   let search_space_start = fst (List.hd space) in
@@ -691,7 +681,7 @@ and aux_chunked search_using_tz (chunked : chunked) =
       | Take_nth n -> OSeq.take_nth n s
       | Chunk_again op -> chunk_based_on_op_on_t op s)
 
-let resolve' ~(search_using_tz) (time : t) :
+let resolve' ~search_using_tz (time : t) :
   (Time.Interval.t Seq.t, string) result =
   let open Time in
   try

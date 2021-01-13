@@ -10,13 +10,8 @@ let time =
          ~max_year_inc:2002 ~max_height ~max_branching ~randomness)
 
 let time_tagged =
-  Crowbar.map
-    [ time ]
-    (fun time ->
-       time
-       |> Resolver.t_of_ast
-       |> Resolver.optimize_search_space Time_zone.utc
-  )
+  Crowbar.map [ time ] (fun time ->
+      time |> Resolver.t_of_ast |> Resolver.optimize_search_space Time_zone.utc)
 
 let pattern =
   Crowbar.map
@@ -85,8 +80,7 @@ let pattern =
            |> Seq.map (fun _ -> rng () mod 60)
            |> Int_set.of_seq
        in
-       Pattern.
-         { years; months; month_days; weekdays; hours; minutes; seconds })
+       Pattern.{ years; months; month_days; weekdays; hours; minutes; seconds })
 
 let search_space =
   Crowbar.map

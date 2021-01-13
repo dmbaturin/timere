@@ -1,7 +1,6 @@
 open Test_utils
 
-module Alco = struct
-end
+module Alco = struct end
 
 module Qc = struct
   let to_of_sexp =
@@ -38,9 +37,5 @@ module Qc = struct
          OSeq.equal ~eq:( = ) r1 r2)
 
   let suite =
-    [
-      to_of_sexp;
-      union_order_does_not_matter;
-      inter_order_does_not_matter;
-    ]
+    [ to_of_sexp; union_order_does_not_matter; inter_order_does_not_matter ]
 end
