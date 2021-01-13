@@ -43,7 +43,7 @@ type t =
   | Round_robin_pick_list of t list
   | Inter_seq of t Seq.t
   | Union_seq of t Seq.t
-  | After of int64 * t * t
+  | Follow of int64 * t * t
   | Unchunk of chunked
 
 and chunked =

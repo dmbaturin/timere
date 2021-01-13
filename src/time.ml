@@ -1359,7 +1359,7 @@ let equal t1 t2 =
     | Point t1, Point t2 -> t1 = t2
     | Unary_op (op1, t1), Unary_op (op2, t2) ->
       equal_unary_op op1 op2 && aux t1 t2
-    | After (b1, x11, x12), After (b2, x21, x22)
+    | Follow (b1, x11, x12), Follow (b2, x21, x22)
     | Interval_inc (b1, x11, x12), Interval_inc (b2, x21, x22)
     | Interval_exc (b1, x11, x12), Interval_exc (b2, x21, x22) ->
       b1 = b2 && aux x11 x21 && aux x12 x22
@@ -1672,8 +1672,8 @@ let minutes minutes = pattern ~minutes ()
 
 let seconds seconds = pattern ~seconds ()
 
-let after (bound : Duration.t) (t1 : t) (t2 : t) : t =
-  After (Duration.to_seconds bound, t1, t2)
+let follow (bound : Duration.t) (t1 : t) (t2 : t) : t =
+  Follow (Duration.to_seconds bound, t1, t2)
 
 let interval_inc (bound : Duration.t) (t1 : t) (t2 : t) : t =
   Interval_inc (Duration.to_seconds bound, t1, t2)
