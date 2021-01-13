@@ -152,21 +152,23 @@ let propagate_search_space_bottom_up default_tz (time : t) : t =
     | Point p -> Point p
     | Interval_inc (_, b, t1, t2) ->
       let space_start1 = fst @@ List.hd @@ get_search_space t1 in
-      let space_end_exc2 = fst @@ CCOpt.get_exn @@ Misc_utils.last_element_of_list @@ get_search_space t2 in
-      let space =
-        [
-          (space_start1, space_end_exc2)
-        ]
+      let space_end_exc2 =
+        get_search_space t2
+        |> Misc_utils.last_element_of_list
+        |> CCOpt.get_exn
+        |> fst
       in
+      let space = [ (space_start1, space_end_exc2) ] in
       Interval_inc (space, b, t1, t2)
     | Interval_exc (_, b, t1, t2) ->
       let space_start1 = fst @@ List.hd @@ get_search_space t1 in
-      let space_end_exc2 = fst @@ CCOpt.get_exn @@ Misc_utils.last_element_of_list @@ get_search_space t2 in
-      let space =
-        [
-          (space_start1, space_end_exc2)
-        ]
+      let space_end_exc2 =
+        get_search_space t2
+        |> Misc_utils.last_element_of_list
+        |> CCOpt.get_exn
+        |> fst
       in
+      let space = [ (space_start1, space_end_exc2) ] in
       Interval_exc (space, b, t1, t2)
     | Unary_op (_, op, t) -> (
         match op with
