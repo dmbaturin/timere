@@ -281,9 +281,9 @@ let propagate_search_space_top_down (time : t) : t =
   and aux_seq parent_search_space l = Seq.map (aux parent_search_space) l in
   aux default_search_space time
 
-let optimize_search_space default_tz_offset_s t =
+let optimize_search_space default_tz t =
   t
-  |> propagate_search_space_bottom_up default_tz_offset_s
+  |> propagate_search_space_bottom_up default_tz
   |> propagate_search_space_top_down
 
 type inc_or_exc =
@@ -416,11 +416,11 @@ let rec aux search_using_tz time =
        | Interval_inc (space, b, t1, t2) ->
          let s1 = get_start_spec_of_after search_using_tz space t1 in
          let s2 = aux search_using_tz t2 in
-         aux_between Inc search_using_tz space b s1 s2 t1 t2
+         aux_interval Inc search_using_tz space b s1 s2 t1 t2
        | Interval_exc (space, b, t1, t2) ->
          let s1 = get_start_spec_of_after search_using_tz space t1 in
          let s2 = aux search_using_tz t2 in
-         aux_between Exc search_using_tz space b s1 s2 t1 t2
+         aux_interval Exc search_using_tz space b s1 s2 t1 t2
        | Unary_op (space, op, t) -> (
            let search_using_tz =
              match op with With_tz x -> x | _ -> search_using_tz
@@ -556,11 +556,11 @@ and aux_after search_using_tz space bound s1 s2 t1 t2 =
   in
   aux_after' s1 s2 t1 t2
 
-and aux_between inc_or_exc search_using_tz space bound s1 s2 t1 t2 =
+and aux_interval inc_or_exc search_using_tz space bound s1 s2 t1 t2 =
   let _, search_space_end_exc =
     CCOpt.get_exn @@ Misc_utils.last_element_of_list space
   in
-  let rec aux_between' s1 s2 t1 t2 =
+  let rec aux_interval' s1 s2 t1 t2 =
     match s1 () with
     | Seq.Nil -> Seq.empty
     | Seq.Cons ((start1, _end_exc1), rest1) -> (
@@ -580,15 +580,15 @@ and aux_between inc_or_exc search_using_tz space bound s1 s2 t1 t2 =
                 | Inc -> (start1, end_exc2)
                 | Exc -> (start1, start2)
               in
-              fun () -> Seq.Cons (interval, aux_between' rest1 s2 t1 t2)
+              fun () -> Seq.Cons (interval, aux_interval' rest1 s2 t1 t2)
             else
               let s1, t1 =
                 maybe_slice_start_spec_of_after ~last_start2:start2 ~rest1 ~t1
                   search_using_tz bound
               in
-              aux_between' s1 s2 t1 t2)
+              aux_interval' s1 s2 t1 t2)
   in
-  aux_between' s1 s2 t1 t2
+  aux_interval' s1 s2 t1 t2
 
 and aux_union search_using_tz timeres =
   let open Time in

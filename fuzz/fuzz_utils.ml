@@ -9,6 +9,15 @@ let time =
        Builder.build ~enable_extra_restrictions:false ~min_year:2000
          ~max_year_inc:2002 ~max_height ~max_branching ~randomness)
 
+let time_tagged =
+  Crowbar.map
+    [ time ]
+    (fun time ->
+       time
+       |> Resolver.t_of_ast
+       |> Resolver.optimize_search_space Time_zone.utc
+  )
+
 let pattern =
   Crowbar.map
     [ Crowbar.list (Crowbar.range 5000) ]

@@ -144,12 +144,12 @@
             after_empty
             after_is_sound
             after_is_complete
-            between_inc_empty
-            between_inc_is_sound
-            between_inc_is_complete
-            between_exc_empty
-            between_exc_is_sound
-            between_exc_is_complete
+            interval_inc_empty
+            interval_inc_is_sound
+            interval_inc_is_complete
+            interval_exc_empty
+            interval_exc_is_sound
+            interval_exc_is_complete
             union_is_sound_and_complete
             inter_is_sound_and_complete
             pattern_resolution_is_sound
