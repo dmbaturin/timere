@@ -1825,11 +1825,10 @@ let nth_weekday_of_month (n : int) wday =
       (inter
          [
            interval_inc (Duration.make ~days:7 ())
-              (month_days [ -7 ])
-              (month_days [ -1 ]);
+             (month_days [ -7 ])
+             (month_days [ -1 ]);
            weekdays [ wday ];
-         ]
-      )
+         ])
   in
   match n with
   | 0 -> invalid_arg "nth_weekday_of_month: n = 0"
