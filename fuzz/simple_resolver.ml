@@ -1,6 +1,24 @@
 open Date_time_components
 open Span_set_utils
 
+type span_set_seq = Span_set.t Seq.t
+
+let flatten_span_set_seq (s : span_set_seq) : Time.Interval.t Seq.t =
+  Seq.flat_map
+    intervals_of_span_set s
+
+let gen_grouped_int64_from_search_space (search_start, search_end_exc) : int64 Seq.t Seq.t =
+  Seq_utils.a_to_b_inc_int64 ~a:Span.(search_start.s) ~b:Span.(search_end_exc.s)
+  |> OSeq.chunks 200
+  |> Seq.map CCArray.to_seq
+
+let gen_partitions_from_search_space (search_start, search_end_exc) =
+  Seq_utils.a_to_b_inc_int64 ~a:Span.(search_start.s) ~b:Span.(search_end_exc.s)
+  |> OSeq.chunks 200
+  |> Seq.map (fun arr ->
+      (Span.make ~s:arr.(0) (), Span.make ~s:(Int64.add arr.(Array.length arr - 1) 1L) ())
+    )
+
 let timestamp_safe_sub a b =
   let open Span in
   if a - Constants.timestamp_min >= b then a - b else Constants.timestamp_min
@@ -8,6 +26,79 @@ let timestamp_safe_sub a b =
 let timestamp_safe_add a b =
   let open Span in
   if Constants.timestamp_max - a >= b then a + b else Constants.timestamp_max
+
+let inter search_space (s1 : Time.Interval.t Seq.t) (s2 : Time.Interval.t Seq.t) : Time.Interval.t Seq.t =
+  gen_partitions_from_search_space search_space
+  |> Seq.map (fun (p_x, p_y) ->
+      let s1' = s1
+                |> OSeq.filter Span.(fun (x, y) ->
+                    x <= p_y || p_x < y
+                  )
+                |> span_set_of_intervals
+      in
+      let s2' = s2
+                |> OSeq.filter Span.(fun (x, y) ->
+                    x <= p_y || p_x < y
+                  )
+                |> span_set_of_intervals
+      in
+      let s = span_set_of_intervals @@ Seq.return (p_x, p_y) in
+      Span_set.inter (Span_set.inter s1' s2') s
+    )
+  |> flatten_span_set_seq
+
+let merge s1 s2 =
+  let rec aux s1 s2 =
+  match s1 (), s2 () with
+  | Seq.Nil, s2 -> fun () -> s2
+  | s1, Seq.Nil -> fun () -> s1
+  | Seq.Cons (x1, rest1), Seq.Cons (x2, rest2) ->
+    if Time.Interval.le x1 x2 then
+      fun () -> Seq.Cons (x1, aux rest1 s2)
+    else
+      fun () -> Seq.Cons (x2, aux s1 rest2)
+  in
+  aux s1 s2
+
+let union (s1 : Time.Interval.t Seq.t) (s2 : Time.Interval.t Seq.t) : Time.Interval.t Seq.t =
+  let rec aux buffer s =
+    match s () with
+    | Seq.Nil -> (
+        match buffer with
+        | None -> Seq.empty
+        | Some (start, end_exc) ->
+          Seq.return (start, end_exc)
+      )
+    | Seq.Cons ((x, y), rest) ->
+      match buffer with
+      | None -> aux (Some (x, y)) rest
+      | Some (start, end_exc) ->
+        if x <= end_exc then aux (Some (start, y)) rest
+        else
+          fun () ->
+            Seq.Cons ((start, end_exc), aux (Some (x, y)) rest)
+  in
+  aux None (merge s1 s2)
+
+let complement (search_start, search_end_exc) (s : Time.Interval.t Seq.t) : Time.Interval.t Seq.t =
+  let open Span in
+  let rec aux last_end_exc s =
+    match s () with
+    | Seq.Nil -> (
+        match last_end_exc with
+        | None -> Seq.empty
+        | Some last_end_exc ->
+          if last_end_exc = search_end_exc then Seq.empty
+          else
+            Seq.return (last_end_exc, search_end_exc)
+      )
+    | Seq.Cons ((x, y), rest) ->
+      if x = search_start then
+        aux (Some y) rest
+      else
+
+  in
+  aux s
 
 let do_chunk ~drop_partial (n : Span.t) (s : Time.Interval.t Seq.t) :
   Time.Interval.t Seq.t =
@@ -152,15 +243,19 @@ let aux_pattern_mem search_using_tz (pattern : Pattern.t) (timestamp : int64) :
   && second_is_fine
 
 let aux_pattern (search_start, search_end_exc) search_using_tz pattern :
-  Span_set.t =
+  Time.Interval.t Seq.t =
   let search_space_set =
     span_set_of_intervals @@ Seq.return (search_start, search_end_exc)
   in
-  Seq_utils.a_to_b_inc_int64 ~a:Span.(search_start.s) ~b:Span.(search_end_exc.s)
-  |> Seq.filter (aux_pattern_mem search_using_tz pattern)
-  |> intervals_of_int64s
-  |> span_set_of_intervals
-  |> Span_set.inter search_space_set
+  gen_grouped_int64_from_search_space_seq (search_start, search_end_exc)
+  |> Seq.map (Seq.filter (aux_pattern_mem search_using_tz pattern))
+  |> Seq.map (fun s ->
+      s
+      |> intervals_of_int64s
+      |> span_set_of_intervals
+      |> Span_set.inter search_space_set
+    )
+  |> flatten_span_set_seq
 
 let aux_points_mem search_using_tz ((p, tz_info) : Points.t) timestamp =
   let search_using_tz =
@@ -176,9 +271,9 @@ let aux_points_mem search_using_tz ((p, tz_info) : Points.t) timestamp =
 
 let aux_points (search_start, search_end_exc) search_using_tz points :
   Span.t Seq.t =
-  Seq_utils.a_to_b_inc_int64 ~a:Span.(search_start.s) ~b:Span.(search_end_exc.s)
-  |> Seq.filter (aux_points_mem search_using_tz points)
-  |> intervals_of_int64s
+  gen_grouped_int64_from_search_space_seq (search_start, search_end_exc)
+  |> Seq.map (Seq.filter (aux_points_mem search_using_tz points))
+  |> Seq.flat_map intervals_of_int64s
   |> Seq.map fst
 
 let resolve ?(search_using_tz = Time_zone.utc)
@@ -186,16 +281,17 @@ let resolve ?(search_using_tz = Time_zone.utc)
     (t : Time_ast.t) : Time.Interval.t Seq.t =
   let default_search_space = Time.(timestamp_min, timestamp_max) in
   let rec aux (search_space : Time.Interval.t) (search_using_tz : Time_zone.t) t
-    =
+    : Time.Interval.t Seq.t =
     match t with
-    | Time_ast.Empty -> Span_set.empty
-    | All -> span_set_full
-    | Intervals s -> span_set_of_intervals s
+    | Time_ast.Empty -> Seq.empty
+    | All -> Seq.return (search_start, search_end_exc)
+    | Intervals s -> s
     | Pattern p -> aux_pattern search_space search_using_tz p
     | Unary_op (op, t) -> (
         match op with
         | Not ->
-          Span_set.diff span_set_full (aux search_space search_using_tz t)
+          (aux search_space search_using_tz t)
+          |> Seq.map (Span_set.diff span_set_full)
         (* | Drop_points n ->
          *   aux default_search_space search_using_tz t
          *   |> timestamps_of_intervals
@@ -211,21 +307,21 @@ let resolve ?(search_using_tz = Time_zone.utc)
           aux
             (timestamp_safe_sub x n, timestamp_safe_sub y n)
             search_using_tz t
-          |> span_set_map (fun (x, y) ->
+          |> Seq.map (fun (x, y) ->
               (timestamp_safe_add n x, timestamp_safe_add n y))
         | Lengthen n ->
           let x, y = search_space in
           aux (x, timestamp_safe_add y n) search_using_tz t
-          |> span_set_map (fun (x, y) -> (x, timestamp_safe_add n y))
+          |> Seq.map (fun (x, y) -> (x, timestamp_safe_add n y))
         | With_tz tz -> aux search_space tz t)
     | Inter_seq s ->
       Seq.fold_left
-        (fun acc t -> Span_set.inter acc (aux search_space search_using_tz t))
-        span_set_full s
+        (fun acc t -> inter (search_start, search_end_exc) acc (aux search_space search_using_tz t))
+        (Seq.return (search_start, search_end_exc)) s
     | Union_seq s ->
       Seq.fold_left
-        (fun acc t -> Span_set.union acc (aux search_space search_using_tz t))
-        Span_set.empty s
+        (fun acc t -> union acc (aux search_space search_using_tz t))
+        Seq.empty s
     | Bounded_intervals { pick; bound; start; end_exc } ->
       let x, y = search_space in
       let search_space = (timestamp_safe_sub x bound, y) in
@@ -238,9 +334,8 @@ let resolve ?(search_using_tz = Time_zone.utc)
               match pick with
               | `Whole -> (start, x)
               | `Snd -> (x, Span.succ x)))
-      |> span_set_of_intervals
     | Unchunk chunked ->
-      aux_chunked search_using_tz chunked |> span_set_of_intervals
+      aux_chunked search_using_tz chunked
   (* | _ ->
    *   Seq_utils.a_to_b_exc_int64 ~a:Span.(fst search_space).s ~b:(snd search_space).s
    *   |> Seq.filter (mem ~search_using_tz search_space t)
@@ -257,7 +352,6 @@ let resolve ?(search_using_tz = Time_zone.utc)
     match chunked with
     | Unary_op_on_t (op, t) ->
       aux default_search_space search_using_tz t
-      |> intervals_of_span_set
       |> chunk_based_on_op_on_t op
     | Unary_op_on_chunked (op, c) -> (
         let s = aux_chunked search_using_tz c in
